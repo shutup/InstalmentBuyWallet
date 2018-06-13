@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="commonMargin">32dp</dimen>
+    <dimen name="normalMargin">10dp</dimen>
+    <dimen name="littleMargin">5dp</dimen>
+
+
+    <dimen name="firstTextSize">20sp</dimen>
+    <dimen name="secondTextSize">16sp</dimen>
+</resources>

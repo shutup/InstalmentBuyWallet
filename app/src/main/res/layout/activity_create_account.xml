@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".activity.CreateAccountActivity">
+
+    <include layout="@layout/toolbar"></include>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/commonMargin"
+        android:orientation="vertical">
+
+        <EditText
+            android:id="@+id/passwordText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="请输入密码"
+            android:textColorHint="@color/colorBase"/>
+
+        <EditText
+            android:id="@+id/passwordConfirmText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="请再次输入密码"
+            android:textColorHint="@color/colorBase"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="请设置一个不小于8位的密码\n该密码用于账户金额的消费和转账，请务必妥善保存\n丢失密码将没有任何方法找回"/>
+
+        <Button
+            android:id="@+id/createAccountBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginLeft="40dp"
+            android:layout_marginRight="40dp"
+            android:layout_marginTop="@dimen/commonMargin"
+            android:layout_weight="1"
+            android:text="创建账户"
+            android:textColor="@color/colorBase"/>
+
+        <TextView
+            android:id="@+id/importAccountBtn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/littleMargin"
+            android:gravity="center"
+            android:text="已有账户，立即导入账户"
+            android:textColor="@color/colorBase"/>
+    </LinearLayout>
+</LinearLayout>
