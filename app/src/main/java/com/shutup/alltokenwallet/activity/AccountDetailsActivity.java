@@ -2,7 +2,6 @@ package com.shutup.alltokenwallet.activity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
 import android.widget.Button;
@@ -11,14 +10,14 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.shutup.alltokenwallet.R;
+import com.shutup.alltokenwallet.base.BaseActivity;
 import com.shutup.alltokenwallet.model.AccountInfo;
-import com.shutup.alltokenwallet.utils.Constants;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
-public class AccountDetailsActivity extends AppCompatActivity implements Constants {
+public class AccountDetailsActivity extends BaseActivity {
 
     @BindView(R.id.left_icon)
     ImageView mLeftIcon;
@@ -102,6 +101,10 @@ public class AccountDetailsActivity extends AppCompatActivity implements Constan
                 mBottomBtnLayout.setVisibility(View.GONE);
                 break;
             case R.id.rewardBtn:
+                //jump to detail
+                Intent intent = new Intent(AccountDetailsActivity.this, TransferActivity.class);
+                intent.putExtra(ACCOUNT_INFO_KEY, mAccountInfo);
+                startActivity(intent);
                 break;
             case R.id.showHideAddrImage:
                 updateAddrtextStatus();

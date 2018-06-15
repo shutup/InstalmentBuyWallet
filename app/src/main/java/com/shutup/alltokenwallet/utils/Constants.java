@@ -1,6 +1,9 @@
 package com.shutup.alltokenwallet.utils;
 
 public interface Constants {
+    int REQUEST_CODE_SCAN = 1;
+    int REQUEST_CODE_USE_CAMERA = 2;
+    int REQUEST_CODE_USE_SDCARD = 3;
 
     String ACCOUNT_INFO_KEY = "ACCOUNT_INFO_KEY";
 

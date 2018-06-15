@@ -9,10 +9,7 @@ public class FileManager {
 
     private static boolean isSDCardAvailable() {
         String state = Environment.getExternalStorageState();
-        if (state.equals(Environment.MEDIA_MOUNTED)) {
-            return true;
-        }
-        return false;
+        return state.equals(Environment.MEDIA_MOUNTED);
     }
 
     private static File getSDCardPath() {

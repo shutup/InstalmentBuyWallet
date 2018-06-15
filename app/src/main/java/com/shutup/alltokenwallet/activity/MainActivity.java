@@ -1,9 +1,9 @@
 package com.shutup.alltokenwallet.activity;
 
+import android.Manifest;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
-import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -14,10 +14,13 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.zxing.integration.android.IntentIntegrator;
+import com.google.zxing.integration.android.IntentResult;
 import com.shutup.alltokenwallet.R;
+import com.shutup.alltokenwallet.base.BaseActivity;
 import com.shutup.alltokenwallet.db.RealmManager;
 import com.shutup.alltokenwallet.model.AccountInfo;
-import com.shutup.alltokenwallet.utils.Constants;
+import com.shutup.alltokenwallet.utils.XPermissionUtils;
 
 import java.util.List;
 
@@ -26,7 +29,7 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 import io.realm.RealmResults;
 
-public class MainActivity extends AppCompatActivity implements Constants {
+public class MainActivity extends BaseActivity {
 
     @BindView(R.id.swipeRefresh)
     SwipeRefreshLayout mSwipeRefresh;
@@ -52,6 +55,7 @@ public class MainActivity extends AppCompatActivity implements Constants {
     List<AccountInfo> mAccountInfos;
     AccountRecyclerViewAdapter mAccountRecyclerViewAdapter;
 
+    IntentIntegrator qrScan;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +79,7 @@ public class MainActivity extends AppCompatActivity implements Constants {
     }
 
     private void initView() {
+        qrScan = new IntentIntegrator(this);
 
         mTotalAccount.setText("456.233223");
         mTitleText.setText("AllCoin Wallet");
@@ -89,8 +94,8 @@ public class MainActivity extends AppCompatActivity implements Constants {
 
         RealmResults<AccountInfo> accountInfoRealmResults = RealmManager.getRealmInstance().where(AccountInfo.class).findAll();
         mAccountInfos = RealmManager.getRealmInstance().copyFromRealm(accountInfoRealmResults);
-        mAccountRecyclerViewAdapter = new AccountRecyclerViewAdapter(getApplicationContext(), mAccountInfos);
-        mRecyclerView.addOnItemTouchListener(new RecyclerViewTouchListener(mRecyclerView.getContext(), mRecyclerView, new ClickListener() {
+        mAccountRecyclerViewAdapter = new AccountRecyclerViewAdapter(mRecyclerView.getContext(), mAccountInfos);
+        mRecyclerView.addOnItemTouchListener(new RecyclerViewTouchListener(this, mRecyclerView, new ClickListener() {
             @Override
             public void onClick(View view, int position) {
                 //jump to detail
@@ -113,7 +118,6 @@ public class MainActivity extends AppCompatActivity implements Constants {
         mLeftIcon.setImageDrawable(getResources().getDrawable(R.drawable.ic_scan));
         mRightIcon.setImageDrawable(getResources().getDrawable(R.drawable.ic_setting));
         mTitleText.setText("Wallet");
-
     }
 
     @OnClick(R.id.addBtn)
@@ -124,7 +128,7 @@ public class MainActivity extends AppCompatActivity implements Constants {
     @OnClick(R.id.createAccountBtn)
     public void onMCreateAccountBtnClicked() {
         mBottomBtnLayout.setVisibility(View.GONE);
-        Intent intent = new Intent(this, CreateAccountActivity.class);
+        Intent intent = new Intent(MainActivity.this, CreateAccountActivity.class);
         startActivity(intent);
     }
 
@@ -140,6 +144,40 @@ public class MainActivity extends AppCompatActivity implements Constants {
 
     @OnClick(R.id.left_icon)
     public void onMLeftIconClicked() {
+        processScan();
+    }
+
+    private void processScan() {
+        XPermissionUtils.requestPermissions(this, REQUEST_CODE_USE_CAMERA, new String[]{Manifest.permission.CAMERA}, new XPermissionUtils.OnPermissionListener() {
+            @Override
+            public void onPermissionGranted() {
+                qrScan.setOrientationLocked(false);
+                qrScan.setBarcodeImageEnabled(true);
+                qrScan.initiateScan();
+            }
+
+            @Override
+            public void onPermissionDenied() {
+                Toast.makeText(MainActivity.this, "请授予使用摄像头的权限", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        /**
+         * 处理二维码扫描结果
+         */
+        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
+        if (result != null) {
+            if (result.getContents() == null) {
+                Toast.makeText(this, "Cancelled", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Scanned: " + result.getContents(), Toast.LENGTH_LONG).show();
+            }
+        } else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     @OnClick(R.id.right_icon)

@@ -1,6 +1,8 @@
 package com.shutup.alltokenwallet.activity;
 
+import android.app.Dialog;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.os.AsyncTask;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -10,6 +12,11 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.MultiFormatWriter;
+import com.google.zxing.WriterException;
+import com.google.zxing.common.BitMatrix;
+import com.journeyapps.barcodescanner.BarcodeEncoder;
 import com.shutup.alltokenwallet.BuildConfig;
 import com.shutup.alltokenwallet.R;
 import com.shutup.alltokenwallet.contract_wrapper.RXToken;
@@ -24,6 +31,7 @@ import org.web3j.tx.Contract;
 import org.web3j.tx.ManagedTransaction;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 
@@ -50,15 +58,39 @@ public class AccountRecyclerViewAdapter extends RecyclerView.Adapter<AccountRecy
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
-        AccountInfo accountInfo = mAccountInfos.get(position);
+    public void onBindViewHolder(final ViewHolder holder, int position) {
+        final AccountInfo accountInfo = mAccountInfos.get(position);
         holder.mWalletAddrText.setText(accountInfo.getAddress());
+        holder.mQrCodeImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                final Dialog dialog = new Dialog(view.getContext());
+                dialog.setContentView(R.layout.qr_view);
+                ImageView qr_big = (ImageView) dialog.findViewById(R.id.qr_big);
+                qr_big.setImageBitmap(QRGen(accountInfo.getAddress(), 600, 600));
+                dialog.show();
+            }
+        });
         new GetBalanceTask().execute(accountInfo, holder);
     }
 
     @Override
     public int getItemCount() {
         return mAccountInfos.size();
+    }
+
+    public Bitmap QRGen(String Value, int Width, int Heigth) {
+        MultiFormatWriter multiFormatWriter = new MultiFormatWriter();
+        Bitmap bitmap = null;
+        try {
+            BitMatrix bitMatrix = multiFormatWriter.encode(Value, BarcodeFormat.DATA_MATRIX.QR_CODE, Width, Heigth);
+            BarcodeEncoder barcodeEncoder = new BarcodeEncoder();
+            bitmap = barcodeEncoder.createBitmap(bitMatrix);
+            return bitmap;
+        } catch (WriterException e) {
+            e.printStackTrace();
+        }
+        return bitmap;
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
@@ -99,7 +131,8 @@ public class AccountRecyclerViewAdapter extends RecyclerView.Adapter<AccountRecy
                 e.printStackTrace();
             }
 
-            return balance.toString();
+            BigDecimal bigDecimal = BigDecimal.valueOf(balance.floatValue() / 10000);
+            return bigDecimal.toString();
         }
 
         @Override
