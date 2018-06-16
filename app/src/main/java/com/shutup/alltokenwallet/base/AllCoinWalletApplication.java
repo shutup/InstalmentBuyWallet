@@ -1,10 +1,10 @@
 package com.shutup.alltokenwallet.base;
 
-import android.support.multidex.MultiDexApplication;
+import android.app.Application;
 
 import io.realm.Realm;
 
-public class AllCoinWalletApplication extends MultiDexApplication {
+public class AllCoinWalletApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();

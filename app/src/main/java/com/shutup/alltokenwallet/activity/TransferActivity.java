@@ -2,7 +2,6 @@ package com.shutup.alltokenwallet.activity;
 
 import android.Manifest;
 import android.content.Intent;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -17,17 +16,18 @@ import com.google.zxing.integration.android.IntentResult;
 import com.shutup.alltokenwallet.BuildConfig;
 import com.shutup.alltokenwallet.R;
 import com.shutup.alltokenwallet.base.BaseActivity;
-import com.shutup.alltokenwallet.contract_wrapper.RXToken;
 import com.shutup.alltokenwallet.model.AccountInfo;
-import com.shutup.alltokenwallet.utils.Web3Manager;
+import com.shutup.alltokenwallet.model.RPCRequestModel;
+import com.shutup.alltokenwallet.model.RPCResponseModel;
+import com.shutup.alltokenwallet.network.WalletAPI;
 import com.shutup.alltokenwallet.utils.XPermissionUtils;
 
+import org.spongycastle.util.encoders.Hex;
 import org.web3j.crypto.CipherException;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.RawTransaction;
+import org.web3j.crypto.TransactionEncoder;
 import org.web3j.crypto.WalletUtils;
-import org.web3j.protocol.core.methods.response.TransactionReceipt;
-import org.web3j.tx.Contract;
-import org.web3j.tx.ManagedTransaction;
 import org.web3j.utils.Convert;
 
 import java.io.IOException;
@@ -37,6 +37,9 @@ import java.math.BigInteger;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class TransferActivity extends BaseActivity {
 
@@ -86,7 +89,18 @@ public class TransferActivity extends BaseActivity {
     }
 
     private void initToolBar() {
-        new GetBalanceTask().execute(mAccountInfo);
+        Call<RPCResponseModel> call = WalletAPI.getInstance().getBalance(new RPCRequestModel(RPC_METHOD_GET_BALANCE, mAccountInfo.getAddress(), "56"));
+        call.enqueue(new Callback<RPCResponseModel>() {
+            @Override
+            public void onResponse(Call<RPCResponseModel> call, Response<RPCResponseModel> response) {
+                mAvailableCount.setText(response.body().getResult());
+            }
+
+            @Override
+            public void onFailure(Call<RPCResponseModel> call, Throwable t) {
+                Toast.makeText(TransferActivity.this, "网络请求失败", Toast.LENGTH_SHORT).show();
+            }
+        });
         mLeftIcon.setImageDrawable(getResources().getDrawable(R.drawable.ic_left_back));
         mTitleText.setText(mAccountInfo.getAccountName());
     }
@@ -158,78 +172,50 @@ public class TransferActivity extends BaseActivity {
     }
 
     private void processTransfer() {
-        String toAddr = mReceiveWalletAddrText.getText().toString().trim();
-        Float sendValueFloat = Float.valueOf(String.valueOf(mTransferAmountEditText.getText())) * 10000;
-        BigInteger sendValue = BigInteger.valueOf(sendValueFloat.longValue());
-        new SendTokenTask().execute(mAccountInfo, toAddr, sendValue);
-    }
+        final String toAddr = mReceiveWalletAddrText.getText().toString().trim();
+        final BigInteger sendValue = Convert.toWei(mTransferAmountEditText.getText().toString(), Convert.Unit.ETHER).toBigInteger();
 
-    class GetBalanceTask extends AsyncTask<Object, Void, String> {
+        Call<RPCResponseModel> getTransactionCountCall = WalletAPI.getInstance().getTransactionCount(new RPCRequestModel(RPC_METHOD_GET_TRANSACTION_COUNT, mAccountInfo.getAddress(), "pending"));
+        getTransactionCountCall.enqueue(new Callback<RPCResponseModel>() {
+            @Override
+            public void onResponse(Call<RPCResponseModel> call, Response<RPCResponseModel> response) {
+                RPCResponseModel rpcResponseModel = response.body();
+                BigInteger nonce = BigInteger.valueOf(Long.valueOf(rpcResponseModel.getResult()));
+                Credentials credentials = null;
+                try {
+                    credentials = WalletUtils.loadCredentials(mAccountInfo.getPassword(), mAccountInfo.getPath());
+                } catch (IOException e) {
+                    if (BuildConfig.DEBUG) Log.d("TransferActivity", "e:" + e);
+                    e.printStackTrace();
+                } catch (CipherException e) {
+                    if (BuildConfig.DEBUG) Log.d("TransferActivity", "e:" + e);
+                    e.printStackTrace();
+                }
 
-        @Override
-        protected String doInBackground(Object... params) {
-            AccountInfo accountInfo = (AccountInfo) params[0];
-            Credentials credentials = null;
-            try {
-                credentials = WalletUtils.loadCredentials(accountInfo.getPassword(), accountInfo.getPath());
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (CipherException e) {
-                e.printStackTrace();
+                final BigInteger gasLimit = BigInteger.valueOf(51675);
+                final BigInteger gasPrice = Convert.toWei(BigDecimal.valueOf(2), Convert.Unit.GWEI).toBigInteger();
+                RawTransaction rawTransaction = RawTransaction.createEtherTransaction(nonce, gasPrice, gasLimit, toAddr, sendValue);
+                byte[] signedMessage = TransactionEncoder.signMessage(rawTransaction, credentials);
+                String hexValue = "0x" + Hex.toHexString(signedMessage);
+                if (BuildConfig.DEBUG) Log.d("TransferActivity", hexValue);
+                Call<RPCResponseModel> sendRawTransactionCall = WalletAPI.getInstance().sendRawTransaction(new RPCRequestModel(RPC_METHOD_SEND_RAW_TRANACTION, hexValue));
+                sendRawTransactionCall.enqueue(new Callback<RPCResponseModel>() {
+                    @Override
+                    public void onResponse(Call<RPCResponseModel> call, Response<RPCResponseModel> response) {
+                        finish();
+                    }
+
+                    @Override
+                    public void onFailure(Call<RPCResponseModel> call, Throwable t) {
+                        Toast.makeText(TransferActivity.this, "网络请求失败", Toast.LENGTH_SHORT).show();
+                    }
+                });
             }
-            RXToken rxToken = RXToken.load(Token_Address, Web3Manager.getInstance(), credentials, ManagedTransaction.GAS_PRICE, Contract.GAS_LIMIT);
-            BigInteger balance = null;
-            try {
-                balance = rxToken.balanceOf(accountInfo.getAddress()).send();
-            } catch (Exception e) {
-                e.printStackTrace();
+
+            @Override
+            public void onFailure(Call<RPCResponseModel> call, Throwable t) {
+                Toast.makeText(TransferActivity.this, "网络请求失败", Toast.LENGTH_SHORT).show();
             }
-            BigDecimal bigDecimal = BigDecimal.valueOf(balance.floatValue() / 10000);
-            return bigDecimal.toString();
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-            if (BuildConfig.DEBUG) Log.d("GetBalanceTask", s);
-            mAvailableCount.setText(s);
-        }
-    }
-
-    class SendTokenTask extends AsyncTask<Object, Void, String> {
-
-        @Override
-        protected String doInBackground(Object... params) {
-            AccountInfo accountInfo = (AccountInfo) params[0];
-            String toAddr = (String) params[1];
-            BigInteger value = (BigInteger) params[2];
-            Credentials credentials = null;
-            try {
-                credentials = WalletUtils.loadCredentials(accountInfo.getPassword(), accountInfo.getPath());
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (CipherException e) {
-                e.printStackTrace();
-            }
-            BigInteger gasLimit = BigInteger.valueOf(51675);
-            BigInteger gasPrice = Convert.toWei(BigDecimal.valueOf(2), Convert.Unit.GWEI).toBigInteger();
-
-            RXToken rxToken = RXToken.load(Token_Address, Web3Manager.getInstance(), credentials, gasPrice, gasLimit);
-            TransactionReceipt transactionReceipt = null;
-            try {
-                transactionReceipt = rxToken.transfer(toAddr, value).send();
-                return transactionReceipt.getTransactionHash();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return "some thing wrong";
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-            if (BuildConfig.DEBUG) Log.d("GetBalanceTask", s);
-            mAvailableCount.setText(s);
-        }
+        });
     }
 }

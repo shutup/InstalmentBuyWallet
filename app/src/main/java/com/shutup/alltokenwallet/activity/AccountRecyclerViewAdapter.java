@@ -3,40 +3,33 @@ package com.shutup.alltokenwallet.activity;
 import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.os.AsyncTask;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
-import com.shutup.alltokenwallet.BuildConfig;
 import com.shutup.alltokenwallet.R;
-import com.shutup.alltokenwallet.contract_wrapper.RXToken;
 import com.shutup.alltokenwallet.model.AccountInfo;
+import com.shutup.alltokenwallet.model.RPCRequestModel;
+import com.shutup.alltokenwallet.model.RPCResponseModel;
+import com.shutup.alltokenwallet.network.WalletAPI;
 import com.shutup.alltokenwallet.utils.Constants;
-import com.shutup.alltokenwallet.utils.Web3Manager;
 
-import org.web3j.crypto.CipherException;
-import org.web3j.crypto.Credentials;
-import org.web3j.crypto.WalletUtils;
-import org.web3j.tx.Contract;
-import org.web3j.tx.ManagedTransaction;
-
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class AccountRecyclerViewAdapter extends RecyclerView.Adapter<AccountRecyclerViewAdapter.ViewHolder> implements Constants {
 
@@ -71,7 +64,18 @@ public class AccountRecyclerViewAdapter extends RecyclerView.Adapter<AccountRecy
                 dialog.show();
             }
         });
-        new GetBalanceTask().execute(accountInfo, holder);
+        Call<RPCResponseModel> call = WalletAPI.getInstance().getBalance(new RPCRequestModel(RPC_METHOD_GET_BALANCE, accountInfo.getAddress(), "56"));
+        call.enqueue(new Callback<RPCResponseModel>() {
+            @Override
+            public void onResponse(Call<RPCResponseModel> call, Response<RPCResponseModel> response) {
+                holder.mBalanceText.setText(response.body().getResult());
+            }
+
+            @Override
+            public void onFailure(Call<RPCResponseModel> call, Throwable t) {
+                Toast.makeText(mContext, "网络请求失败", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
@@ -106,41 +110,4 @@ public class AccountRecyclerViewAdapter extends RecyclerView.Adapter<AccountRecy
             ButterKnife.bind(this, view);
         }
     }
-
-    class GetBalanceTask extends AsyncTask<Object, Void, String> {
-
-        ViewHolder mViewHolder;
-
-        @Override
-        protected String doInBackground(Object... params) {
-            mViewHolder = (ViewHolder) params[1];
-            AccountInfo accountInfo = (AccountInfo) params[0];
-            Credentials credentials = null;
-            try {
-                credentials = WalletUtils.loadCredentials(accountInfo.getPassword(), accountInfo.getPath());
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (CipherException e) {
-                e.printStackTrace();
-            }
-            RXToken rxToken = RXToken.load(Token_Address, Web3Manager.getInstance(), credentials, ManagedTransaction.GAS_PRICE, Contract.GAS_LIMIT);
-            BigInteger balance = null;
-            try {
-                balance = rxToken.balanceOf(accountInfo.getAddress()).send();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            BigDecimal bigDecimal = BigDecimal.valueOf(balance.floatValue() / 10000);
-            return bigDecimal.toString();
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-            if (BuildConfig.DEBUG) Log.d("GetBalanceTask", s);
-            mViewHolder.mBalanceText.setText(s);
-        }
-    }
-
 }
